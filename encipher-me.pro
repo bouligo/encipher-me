@@ -14,8 +14,10 @@ TEMPLATE = app
 CONFIG += crypto
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    Cipher.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    Cipher.h
 
 FORMS    += mainwindow.ui
