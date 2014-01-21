@@ -10,30 +10,47 @@ Cipher::Cipher()
     //QCA::Initializer init = QCA::Initializer();
     QCA::init();
 
-    /**
+     /*
       *Default error msg Initialization
       */
     this->errorMsg="Unknown Error";
     this->errorTitle="Unknown Error";
 }
 
+/**
+ * @brief Cipher::encipher : encipher a list of file with a single password
+ * @param currentCipher : cipher to use
+ * @param inputFiles : list of files to encipher
+ * @param password : password to use
+ * @return 0 : ok
+ * @return 1 : couldn't open a file
+ * @return 2 : couldn't write into file
+ * @return 42 : encipherment failed
+ */
 int Cipher::encipher(QString currentCipher, QString inputFiles, QString password) {
 
-    //generate a symmetric key
-    QCA::SymmetricKey key = QCA::SecureArray(password.toAscii());
-    //generate a initialization vector
-    QCA::InitializationVector iv = QCA::SecureArray(password.toAscii());
+
+    QCA::SecureArray salt = QCA::Random::randomArray(16);
+
+    QCA::PBKDF2 pbkdf2;
+    QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 1000); //100K or more
+
+    QCA::Hash hash("md5");
+    hash.update(key.toByteArray());
+    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
+
+
+    qDebug() << "Password: " + password << ", salt: " << salt.toByteArray() << ", key: " << key.toByteArray() << ", iv: " << iv.toByteArray() << ", hash: " << iv.toByteArray() << iv.size();
 
     //    if(!checkCipherAvailability(currentCipher))
     //        return 42;
 
-    //initialize the cipher for aes256 algorithm, using CBC mode,
-    //with padding enabled (by default), in encoding mode,
-    //using the given key and initialization vector
+    /*
+     * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
+     */
     QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
                                      QCA::Cipher::DefaultPadding, QCA::Encode,
                                      key, iv);
-
 
     QStringList fileList(this->getFileList(inputFiles));
 
@@ -47,15 +64,14 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
             return 1;
         }
 
-        //we use SecureArray: read more here:
-        //QCA secure array details
         QCA::SecureArray secureData = file.readAll();
         file.close();
 
 
         //we encrypt the data
         QCA::SecureArray encipheredData = cipher.process(secureData);
-        //check if encryption succeded
+
+        //checks if encryption succeded
         if (!cipher.ok())
         {
             this->errorMsg = "Erreur lors du chiffrement des données de " + file.fileName();
@@ -70,6 +86,9 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
             return 2;
         }
 
+        /*we write magic 8 bytes + salt (16 bytes for now) */
+        encFile.write("Salted__" + salt.toByteArray());
+
         encFile.write(encipheredData.data(),(qint64) encipheredData.size());
         encFile.close();
     }
@@ -78,26 +97,21 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
 
 }
 
+/**
+ * @brief Cipher::decipher : decipher a list of file with a single password
+ * @param currentCipher : cipher to use
+ * @param inputFiles : list of files to decipher
+ * @param password : password to use
+ * @return 0 : ok
+ * @return 1 : couldn't open a file
+ * @return 2 : couldn't write into file
+ * @return 42 : decipherment failed
+ */
 int Cipher::decipher(QString currentCipher, QString inputFiles, QString password) {
-
-    //generate a symmetric key
-    QCA::SymmetricKey key = QCA::SecureArray(password.toAscii());
-    //generate a initialization vector
-    QCA::InitializationVector iv = QCA::SecureArray(password.toAscii());
-
-    //    if(!checkCipherAvailability(currentCipher))
-    //        return 42;
-
-    //initialize the cipher for aes256 algorithm, using CBC mode,
-    //with padding enabled (by default), in encoding mode,
-    //using the given key and initialization vector
-    /** function to do here */
-    QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
-                                     QCA::Cipher::DefaultPadding, QCA::Decode,
-                                     key, iv);
 
     QStringList fileList(this->getFileList(inputFiles));
     for(int it=0;it<fileList.size();++it) {
+
         //the file we want to decrypt
         QFile file(fileList.at(it));
 
@@ -108,23 +122,46 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
         }
 
 
-        //we use SecureArray: read more here:
-        //QCA secure array details
-        QCA::SecureArray secureData = file.readAll();
+        QCA::SecureArray fileContent = file.readAll();
         file.close();
 
+        QString saltQString = fileContent.toByteArray();
+        saltQString.truncate(24);
+        saltQString.remove(0,8);
+        QCA::SecureArray salt = saltQString.toAscii(); /* salt pas bon ? */
 
+        QByteArray secureData = fileContent.toByteArray().remove(0,24);
+
+
+        QCA::PBKDF2 pbkdf2;
+        QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 1000); //100K or more
+
+        QCA::Hash hash("md5");
+        hash.update(key.toByteArray());
+        QCA::InitializationVector iv = QCA::SecureArray(hash.final());
+
+        qDebug() << "Password: " + password << ", salt: " << salt.toByteArray() << ", key: " << key.toByteArray() << ", iv: " << iv.toByteArray() << ", hash: " << iv.toByteArray() << iv.size();
+
+        //    if(!checkCipherAvailability(currentCipher))
+        //        return 42;
+
+        /*
+         * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
+         */
+        QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
+                                         QCA::Cipher::DefaultPadding, QCA::Decode,
+                                         key, iv);
 
         //decrypt the encrypted data
         QCA::SecureArray decryptedData = cipher.process(secureData);
-        //check if decryption succeded
+
+        //checks if decryption succeded
         if (!cipher.ok())
         {
             this->errorMsg = "Erreur lors du déchiffrement de " + file.fileName();
             this->errorTitle = "Erreur lors du déchiffrement";
             return 42;
         }
-
 
 
         QFile destFile(fileList.at(it).split(".enc").first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .enc ?*/
@@ -136,11 +173,19 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
 
         destFile.write(decryptedData.data(),(qint64) decryptedData.size());
         destFile.close();
-    }
 
+
+    }
     return 0;
 }
 
+/**
+ * @brief Cipher::makeChecksum
+ * @param inputFiles : files to analyze & create their associated .md5
+ * @return 0 : ok
+ * @return 1 : couldn't open a file
+ * @return 2 : couldn't write into file
+ */
 int Cipher::makeChecksum(QString inputFiles) {
 
     QStringList fileList = this->getFileList(inputFiles);
@@ -157,6 +202,8 @@ int Cipher::makeChecksum(QString inputFiles) {
         QString md5hash = hash.final().toByteArray().toHex();
         file.close();
 
+        /* TODO: check errors ? */
+
         QFile destFile(file.fileName() + ".md5");
         if(!destFile.open(QIODevice::WriteOnly)) {
             this->errorMsg = "Erreur lors de la création du fichier" + file.fileName() + ".md5";
@@ -172,14 +219,14 @@ int Cipher::makeChecksum(QString inputFiles) {
 }
 
 /**
- * @brief Cipher::checkChecksum
- * @param inputFiles -> files to check
- * @param checksumFiles ->
- * @return 0 if ok
- * @return 1 if
- * @return 2 if
- * @return 10 if
- * @return 42 if md5 check fails
+ * @brief Cipher::checkChecksum : check a list of .md5 with their associated files
+ * @param inputFiles : files to check
+ * @param checksumFiles : .md5 to compare
+ * @return 0 : ok
+ * @return 1 : couldn't open a file
+ * @return 2 : incorrect number of *.md5 provided
+ * @return 10 : names between files and .md5 differ
+ * @return 42 : md5 check fails
  */
 int Cipher::checkChecksum(QString inputFiles, QString checksumFiles) {
 
@@ -193,14 +240,14 @@ int Cipher::checkChecksum(QString inputFiles, QString checksumFiles) {
         this->errorMsg = "Il faut un fichier .md5 par fichier à vérifier";
         this->errorTitle = "Erreur lors du controle checksum";
         return 2;
-}
+    }
 
     for(int it=0;it<fileList.size();++it) {
         if(fileList.at(it).split(".enc").first().compare(checksumList.at(it).split(".md5").first())!=0) {
             this->errorMsg = "La vérification de l'intégrité du fichier a échoué. Vérifiez que les noms correspondent :<br /><br />fichier.txt --> fichier.txt.md5";
             this->errorTitle = "Erreur lors du controle checksum";
             return 10;
-}
+        }
 
         QFile file(fileList.at(it).split(".enc").first().toAscii());
         if(!file.open(QIODevice::ReadOnly)) {
@@ -233,6 +280,11 @@ int Cipher::checkChecksum(QString inputFiles, QString checksumFiles) {
     return 0;
 }
 
+/**
+ * @brief Cipher::getFileList
+ * @param inputFiles : String containing files' names
+ * @return : List of files to process
+ */
 QStringList Cipher::getFileList(QString inputFiles) { return inputFiles.split(";"); }
 
 //bool Cipher::checkCipherAvailability(QString currentCipher) {

@@ -18,7 +18,6 @@ int main(int argc, char *argv[])
  *  TODO:
  *  List possible algorithms / modes
  *  thread encipherment
- *  hkep2 ?
  *  large files ? to check
  *  Change icon
  *
