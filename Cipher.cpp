@@ -10,7 +10,7 @@ Cipher::Cipher()
     //QCA::Initializer init = QCA::Initializer();
     QCA::init();
 
-     /*
+    /*
       *Default error msg Initialization
       */
     this->errorMsg="Unknown Error";
@@ -29,6 +29,15 @@ Cipher::Cipher()
  */
 int Cipher::encipher(QString currentCipher, QString inputFiles, QString password) {
 
+    /*
+     * First, check if the cipher is supported in current configuration
+     */
+    if(!checkCipherAvailability(currentCipher)) {
+        this->errorMsg = "Le format de chiffrement désiré <b>" + currentCipher + "</b> n'est pas supporté par la configuration courante.";
+        this->errorTitle = "Erreur lors du chiffrement";
+        return 42;
+    }
+
 
     QCA::SecureArray salt = QCA::Random::randomArray(16);
 
@@ -39,11 +48,6 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
     hash.update(key.toByteArray());
     QCA::InitializationVector iv = QCA::SecureArray(hash.final());
 
-
-    qDebug() << "Password: " + password << ", salt: " << salt.toByteArray() << ", key: " << key.toByteArray() << ", iv: " << iv.toByteArray() << ", hash: " << iv.toByteArray() << iv.size();
-
-    //    if(!checkCipherAvailability(currentCipher))
-    //        return 42;
 
     /*
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
@@ -69,12 +73,22 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
 
 
         //we encrypt the data
-        QCA::SecureArray encipheredData = cipher.process(secureData);
+        QCA::SecureArray encipheredData = cipher.update(secureData);
 
         //checks if encryption succeded
         if (!cipher.ok())
         {
             this->errorMsg = "Erreur lors du chiffrement des données de " + file.fileName();
+            this->errorTitle = "Erreur lors du chiffrement";
+            return 42;
+        }
+
+        encipheredData.append(cipher.final());
+
+        //checks if final succeded
+        if (!cipher.ok())
+        {
+            this->errorMsg = "Erreur lors du chiffrement final de " + file.fileName();
             this->errorTitle = "Erreur lors du chiffrement";
             return 42;
         }
@@ -109,6 +123,16 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
  */
 int Cipher::decipher(QString currentCipher, QString inputFiles, QString password) {
 
+    /*
+     * First, check if the cipher is supported in current configuration
+     */
+    if(!checkCipherAvailability(currentCipher)) {
+        this->errorMsg = "Le format de déchiffrement désiré <b>" + currentCipher + "</b> n'est pas supporté par la configuration courante.";
+        this->errorTitle = "Erreur lors du déchiffrement";
+        return 42;
+    }
+
+
     QStringList fileList(this->getFileList(inputFiles));
     for(int it=0;it<fileList.size();++it) {
 
@@ -128,7 +152,7 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
         QString saltQString = fileContent.toByteArray();
         saltQString.truncate(24);
         saltQString.remove(0,8);
-        QCA::SecureArray salt = saltQString.toAscii(); /* salt pas bon ? */
+        QCA::SecureArray salt = saltQString.toAscii();
 
         QByteArray secureData = fileContent.toByteArray().remove(0,24);
 
@@ -140,11 +164,6 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
         hash.update(key.toByteArray());
         QCA::InitializationVector iv = QCA::SecureArray(hash.final());
 
-        qDebug() << "Password: " + password << ", salt: " << salt.toByteArray() << ", key: " << key.toByteArray() << ", iv: " << iv.toByteArray() << ", hash: " << iv.toByteArray() << iv.size();
-
-        //    if(!checkCipherAvailability(currentCipher))
-        //        return 42;
-
         /*
          * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
          */
@@ -153,7 +172,7 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
                                          key, iv);
 
         //decrypt the encrypted data
-        QCA::SecureArray decryptedData = cipher.process(secureData);
+        QCA::SecureArray decryptedData = cipher.update(secureData);
 
         //checks if decryption succeded
         if (!cipher.ok())
@@ -163,6 +182,20 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
             return 42;
         }
 
+        decryptedData.append(cipher.final()); /*fails TODO !!*/
+
+        /* Above code doesn't always work... maybe because there is no data left to compute ? */
+        //checks if final succeded
+//        if (!cipher.ok())
+//        {
+//            this->errorMsg = "Erreur lors du déchiffrement final de " + file.fileName();
+//            this->errorTitle = "Erreur lors du déchiffrement";
+//            return 42;
+//        }
+                if (!cipher.ok())
+                {
+                    qDebug() << "Final in decipherment failed";
+                }
 
         QFile destFile(fileList.at(it).split(".enc").first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .enc ?*/
         if (!destFile.open(QIODevice::WriteOnly)) {
@@ -287,9 +320,8 @@ int Cipher::checkChecksum(QString inputFiles, QString checksumFiles) {
  */
 QStringList Cipher::getFileList(QString inputFiles) { return inputFiles.split(";"); }
 
-//bool Cipher::checkCipherAvailability(QString currentCipher) {
-//    return QCA::isSupported(currentCipher.toAscii()); //TO FIX
-//}
+// for now, we only use cbc mode in pkcs7 padding, 'cause... well, we'll see later on
+bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()+"-"+"cbc"+"-"+"pkcs7"); }
 
 
 QString Cipher::getErrorTitle() {

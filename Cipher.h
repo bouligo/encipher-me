@@ -20,7 +20,7 @@ public:
      * Tools
      */
     QStringList getFileList(QString inputFiles);
-    //bool checkCipherAvailability(QString currentCipher);
+    bool checkCipherAvailability(QString currentCipher);
 
     /**
      * Error handling
