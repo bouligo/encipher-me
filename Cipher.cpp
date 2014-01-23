@@ -68,31 +68,6 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
             return 1;
         }
 
-        QCA::SecureArray secureData = file.readAll();
-        file.close();
-
-
-        //we encrypt the data
-        QCA::SecureArray encipheredData = cipher.update(secureData);
-
-        //checks if encryption succeded
-        if (!cipher.ok())
-        {
-            this->errorMsg = "Erreur lors du chiffrement des données de " + file.fileName();
-            this->errorTitle = "Erreur lors du chiffrement";
-            return 42;
-        }
-
-        encipheredData.append(cipher.final());
-
-        //checks if final succeded
-        if (!cipher.ok())
-        {
-            this->errorMsg = "Erreur lors du chiffrement final de " + file.fileName();
-            this->errorTitle = "Erreur lors du chiffrement";
-            return 42;
-        }
-
         QFile encFile(fileList.at(it) + ".enc");
         if (!encFile.open(QIODevice::WriteOnly)) {
             this->errorMsg = "Erreur lors de l'écriture dans le fichier" + fileList.at(it) + ".enc";
@@ -103,8 +78,34 @@ int Cipher::encipher(QString currentCipher, QString inputFiles, QString password
         /*we write magic 8 bytes + salt (16 bytes for now) */
         encFile.write("Salted__" + salt.toByteArray());
 
+        QCA::SecureArray encipheredData;
+
+        while(!file.atEnd()) {
+            QCA::SecureArray secureData = file.read(256000);
+
+            //we encrypt the data
+            encipheredData = cipher.update(secureData);
+            encFile.write(encipheredData.data(),(qint64) encipheredData.size());
+
+            //checks if encryption succeded
+            if (!cipher.ok())
+            {
+                this->errorMsg = "Erreur lors du chiffrement des données de " + file.fileName();
+                this->errorTitle = "Erreur lors du chiffrement";
+                return 42;
+            }
+        }
+
+        encipheredData = cipher.final();
         encFile.write(encipheredData.data(),(qint64) encipheredData.size());
+
+        //checks if final succeded
+        if (!cipher.ok())
+            qDebug() << "Final in encipherment failed";
+
+
         encFile.close();
+        file.close();
     }
 
     return 0;
@@ -145,16 +146,15 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
             return 1;
         }
 
+        QFile destFile(fileList.at(it).split(".enc").first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .enc ?*/
+        if (!destFile.open(QIODevice::WriteOnly)) {
+            this->errorMsg = "Erreur lors de l'écriture dans le fichier" + fileList.at(it).split(".enc").first();
+            this->errorTitle = "Erreur lors du déchiffrement";
+            return 2;
+        }
 
-        QCA::SecureArray fileContent = file.readAll();
-        file.close();
-
-        QString saltQString = fileContent.toByteArray();
-        saltQString.truncate(24);
-        saltQString.remove(0,8);
-        QCA::SecureArray salt = saltQString.toAscii();
-
-        QByteArray secureData = fileContent.toByteArray().remove(0,24);
+        file.read(8); //ignore first 8 bytes
+        QCA::SecureArray salt = file.read(16);
 
 
         QCA::PBKDF2 pbkdf2;
@@ -171,42 +171,45 @@ int Cipher::decipher(QString currentCipher, QString inputFiles, QString password
                                          QCA::Cipher::DefaultPadding, QCA::Decode,
                                          key, iv);
 
-        //decrypt the encrypted data
-        QCA::SecureArray decryptedData = cipher.update(secureData);
+        QCA::SecureArray decryptedData;
 
-        //checks if decryption succeded
-        if (!cipher.ok())
-        {
-            this->errorMsg = "Erreur lors du déchiffrement de " + file.fileName();
-            this->errorTitle = "Erreur lors du déchiffrement";
-            return 42;
+        while(!file.atEnd()) {
+
+            QByteArray secureData=file.read(256000);
+
+            //decrypt the encrypted data
+            decryptedData = cipher.update(secureData);
+
+            //checks if decryption succeded
+            if (!cipher.ok())
+            {
+                this->errorMsg = "Erreur lors du déchiffrement de " + file.fileName();
+                this->errorTitle = "Erreur lors du déchiffrement";
+                return 42;
+            }
+            destFile.write(decryptedData.data(),(qint64) decryptedData.size());
+
         }
 
-        decryptedData.append(cipher.final()); /*fails TODO !!*/
 
+        decryptedData = cipher.final();
         /* Above code doesn't always work... maybe because there is no data left to compute ? */
         //checks if final succeded
-//        if (!cipher.ok())
-//        {
-//            this->errorMsg = "Erreur lors du déchiffrement final de " + file.fileName();
-//            this->errorTitle = "Erreur lors du déchiffrement";
-//            return 42;
-//        }
-                if (!cipher.ok())
-                {
-                    qDebug() << "Final in decipherment failed";
-                }
-
-        QFile destFile(fileList.at(it).split(".enc").first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .enc ?*/
-        if (!destFile.open(QIODevice::WriteOnly)) {
-            this->errorMsg = "Erreur lors de l'écriture dans le fichier" + fileList.at(it).split(".enc").first();
-            this->errorTitle = "Erreur lors du déchiffrement";
-            return 2;
+        //        if (!cipher.ok())
+        //        {
+        //            this->errorMsg = "Erreur lors du déchiffrement final de " + file.fileName();
+        //            this->errorTitle = "Erreur lors du déchiffrement";
+        //            return 42;
+        //        }
+        if (!cipher.ok())
+        {
+            qDebug() << "Final in decipherment failed";
         }
 
         destFile.write(decryptedData.data(),(qint64) decryptedData.size());
-        destFile.close();
 
+        destFile.close();
+        file.close();
 
     }
     return 0;

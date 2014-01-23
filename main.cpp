@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
  *  thread encipherment
  *  large files ? to check
  *  Change icon
+ *  filter on extentions in file explorer
  *
  *
  *  -cli alternative
