@@ -97,20 +97,30 @@ void MainWindow::on_encipher_clicked()
         return;
     }
     Cipher *cipher = new Cipher();
+    cipher->show();
 
-    if(ui->checksumCheckboxToMake->isChecked()) {
-        if(cipher->makeChecksum(ui->filesToEncipher->text())!=0) {
+
+    QStringList fileList(this->getFileList(ui->filesToEncipher->text()));
+
+    for(int it=0;it<fileList.size();++it) {
+
+        if(ui->checksumCheckboxToMake->isChecked()) {
+            if(cipher->makeChecksum(fileList.at(it))!=0) {
+                QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+                delete cipher;
+                return;
+            }
+        }
+
+        if(cipher->encipher(ui->comboBoxCipherToEncipher->currentText(), fileList.at(it), ui->passwordToEncipherWith->text())
+                !=0) {
             QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
             delete cipher;
             return;
         }
     }
+    QMessageBox::information(this, "Terminé", "Opération de chiffrement du fichier terminée");
 
-    if(cipher->encipher(ui->comboBoxCipherToEncipher->currentText(), ui->filesToEncipher->text(), ui->passwordToEncipherWith->text())
-            ==0)
-        QMessageBox::information(this, "Terminé", "Opération de chiffrement du fichier terminée");
-    else
-        QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
     delete cipher;
 }
 
@@ -125,23 +135,44 @@ void MainWindow::on_decipher_clicked()
         return;
     }
 
-    Cipher *cipher = new Cipher();
 
+    QStringList fileList = this->getFileList(ui->filesToDecipher->text());
+    QStringList checksumList = this->getFileList(ui->checksumFilesToCheck->text());
 
-    if(!cipher->decipher(ui->comboBoxCipherToDecipher->currentText(), ui->filesToDecipher->text(), ui->passwordToDecipherWith->text()))
-        QMessageBox::information(this, "Terminé", "Opération de déchiffrement du fichier terminée");
-    else {
-        QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+    fileList.sort();
+    checksumList.sort();
+
+    if(fileList.size() != checksumList.size() && ui->checksumCheckboxToCheck->isChecked()) {
+        QMessageBox::critical(this, "Erreur lors du controle checksum", "Il faut un fichier .md5 par fichier à vérifier");
         return;
     }
 
-    if(ui->checksumCheckboxToCheck->isChecked()) {
 
-        if(cipher->checkChecksum(ui->filesToDecipher->text(), ui->checksumFilesToCheck->text())==0)
-            QMessageBox::information(this, "Somme de controle", "Vérification du fichier final terminée");
-        else
+    Cipher *cipher = new Cipher();
+    cipher->show();
+
+
+    for(int it=0;it<fileList.size();++it) {
+
+        if(cipher->decipher(ui->comboBoxCipherToDecipher->currentText(), fileList.at(it), ui->passwordToDecipherWith->text())!=0)
             QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+
+
+        if(ui->checksumCheckboxToCheck->isChecked()) {
+            if(cipher->checkChecksum(fileList.at(it), checksumList.at(it))!=0)
+                QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+            else
+                QMessageBox::information(this, "Somme de controle", "Vérification du fichier" + fileList.at(it) + "terminée");
+        }
     }
 
+    QMessageBox::information(this, "Terminé", "Déchiffrement terminé");
     delete cipher;
 }
+
+/**
+ * @brief Cipher::getFileList
+ * @param inputFiles : String containing files' names
+ * @return : List of files to process
+ */
+QStringList MainWindow::getFileList(QString inputFiles) { return inputFiles.split(";"); }

@@ -1,25 +1,33 @@
 #ifndef CIPHER_H
 #define CIPHER_H
+
 #include <QString>
 #include <QtCrypto>
+#include <QWidget>
 
-class Cipher
+namespace Ui {
+class Cipher;
+}
+
+class Cipher : public QWidget
 {
+    Q_OBJECT
+
 public:
+    explicit Cipher(QWidget *parent = 0);
+    ~Cipher();
 
     /**
      * Main methods
      */
-    Cipher();
-    int encipher(QString currentCipher, QString inputFiles, QString key);
-    int decipher(QString currentCipher, QString inputFiles, QString password);
-    int makeChecksum(QString inputFiles);
-    int checkChecksum(QString inputFiles, QString checksumFiles);
+    int encipher(QString currentCipher, QString inputFile, QString key);
+    int decipher(QString currentCipher, QString inputFile, QString password);
+    int makeChecksum(QString inputFile);
+    int checkChecksum(QString inputFile, QString checksumFile);
 
     /**
      * Tools
      */
-    QStringList getFileList(QString inputFiles);
     bool checkCipherAvailability(QString currentCipher);
 
     /**
@@ -28,10 +36,11 @@ public:
     QString getErrorTitle();
     QString getErrorMsg();
 
-
 protected:
     QString errorMsg, errorTitle;
 
+private:
+    Ui::Cipher *ui;
 };
 
 #endif // CIPHER_H

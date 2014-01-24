@@ -15,9 +15,12 @@ CONFIG += crypto
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    Cipher.cpp
+    Cipher.cpp \
+    Calculation.cpp
 
 HEADERS  += mainwindow.h \
-    Cipher.h
+    Cipher.h \
+    Calculation.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    cipher.ui

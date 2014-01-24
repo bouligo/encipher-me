@@ -16,6 +16,11 @@ public:
     ~MainWindow();
     void resetUi();
 
+    /**
+      Tools
+      */
+        QStringList getFileList(QString inputFiles);
+
 private slots:
     void on_actionQuitter_triggered();
 
