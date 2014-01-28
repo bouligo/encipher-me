@@ -21,6 +21,8 @@ int main(int argc, char *argv[])
  *  large files ? to check
  *  Change icon
  *  filter on extentions in file explorer
+ *  change md5 for hashing key
+ *  expert mode
  *
  *
  *  -cli alternative

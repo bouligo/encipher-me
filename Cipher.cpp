@@ -1,6 +1,5 @@
 #include "ui_cipher.h"
 #include "Cipher.h"
-#include "Calculation.h"
 #include <QtCrypto>
 #include <QDebug>
 #include <QFile>
