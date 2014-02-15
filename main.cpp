@@ -14,17 +14,21 @@ int main(int argc, char *argv[])
 
 }
 
+
+/**
+  * Next : organize mainwindow.cpp code, comment, etc. and then, COMMIT !
+  * Next : fix emitProgression from cipher.cpp
+
 /**
  *  TODO:
  *  List possible algorithms / modes
- *  thread encipherment
- *  large files ? to check
  *  Change icon
- *  filter on extentions in file explorer
- *  change md5 for hashing key
- *  expert mode
- *
+ *  secured deletion /w abstract inherited class
+ *  Code factorisation
+ *  Label progress while checksum-ing :)
+ *  Make a difference for release/debug (#define, #ifdef)
+ *  logfile (x.img enciphered with aes256-cbc at ...
+ *  start operation when pressing enter
  *
  *  -cli alternative
- *  QProgressBar to show status
  */
