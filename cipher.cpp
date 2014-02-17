@@ -13,7 +13,42 @@ Cipher::Cipher()
     this->errorTitle="Unknown Error";
     this->success=true;
     this->canceled=false;
+    this->isWorking=false;
 }
+
+/** ***************
+ * Tools & slots  *
+ ************** **/
+
+
+// for now, we only use cbc mode in pkcs7 padding, 'cause... well, we'll see later on
+/**
+ * "aes128-cbc-pkcs7", "aes192-cbc-pkcs7",
+ * "aes256-cbc-pkcs7", "blowfish-cbc-pkcs7", "tripledes-cbc",
+ * "des-cbc-pkcs7", "cast5-cbc-pkcs7")
+ */
+bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()+"-"+"cbc"); }
+
+QString Cipher::getErrorTitle() { return this->errorTitle; }
+
+QString Cipher::getErrorMsg() { return this->errorMsg; }
+
+bool Cipher::getSuccess() { return this->success; }
+
+void Cipher::stopOperation() { this->canceled=true; }
+
+void Cipher::emitProgression() {
+    if(this->operation.contains("cipher") && this->isWorking)
+        // Safety reasons : if we're doin checksums or if no encipherment operation is proceeded, can't say progression.
+            emit progressionChanged((int)((out->size()*100)/in->size()));
+    else
+        emit progressionChanged(0);
+}
+
+/** ***************
+ * Core functions *
+ ************** **/
+
 
 /**
  * @brief Cipher::startOperation : main entry point for other classes
@@ -22,6 +57,31 @@ Cipher::Cipher()
  * @param currentCipher : algorithm to use
  * @param pass : password
  * @param checksum : checksum file (if newOperation.equals(checkChecksum)
+ */
+
+
+/**
+ * @brief Cipher::run : inherited by QThread
+ */
+void Cipher::run() {
+    if(this->operation.contains("encipher"))
+        this->encipher(this->algo, this->password);
+    if(this->operation.contains("decipher"))
+        this->decipher(this->algo, this->password);
+    if(this->operation.contains("makeChecksum"))
+        this->makeChecksum();
+    if(this->operation.contains("checkChecksum"))
+        this->checkChecksum();
+}
+
+
+/**
+ * @brief Cipher::startOperation : put right parameters into attributes, and then call run()
+ * @param newOperation : operation to do
+ * @param inputFile : input file (thx captain)
+ * @param currentCipher : algorith to use
+ * @param pass : password
+ * @param checksum : checksum file
  */
 void Cipher::startOperation(QString newOperation, QString inputFile, QString currentCipher, QString pass, QString checksum) {
 
@@ -51,56 +111,6 @@ void Cipher::startOperation(QString newOperation, QString inputFile, QString cur
 }
 
 /**
- * @brief Cipher::run : inherited by QThread
- */
-void Cipher::run() {
-    if(this->operation.contains("encipher"))
-        this->encipher(this->algo, this->password);
-    if(this->operation.contains("decipher"))
-        this->decipher(this->algo, this->password);
-    if(this->operation.contains("makeChecksum"))
-        this->makeChecksum();
-    if(this->operation.contains("checkChecksum"))
-        this->checkChecksum();
-}
-
-
-/** ***************
- * Tools & slots  *
- ************** **/
-
-
-// for now, we only use cbc mode in pkcs7 padding, 'cause... well, we'll see later on
-/**
- * can theoricaly be ("aes128-ecb", "aes128-cfb", "aes128-cbc", "aes128-cbc-pkcs7", "aes128-ofb",
- * "aes192-ecb", "aes192-cfb", "aes192-cbc", "aes192-cbc-pkcs7", "aes192-ofb", "aes256-ecb", "aes256-cbc",
- * "aes256-cbc-pkcs7", "aes256-cfb", "aes256-ofb", "blowfish-ecb", "blowfish-cbc-pkcs7", "blowfish-cbc",
- * "blowfish-cfb", "blowfish-ofb", "tripledes-ecb", "tripledes-cbc", "des-ecb", "des-ecb-pkcs7", "des-cbc",
- * "des-cbc-pkcs7", "des-cfb", "des-ofb", "cast5-ecb", "cast5-cbc", "cast5-cbc-pkcs7", "cast5-cfb", "cast5-ofb")
- *
- * and we'll do : (
- * "aes128-cbc-pkcs7", "aes192-cbc-pkcs7",
- * "aes256-cbc-pkcs7", "blowfish-cbc-pkcs7", "tripledes-cbc",
- * "des-cbc-pkcs7", "cast5-cbc-pkcs7")
- */
-bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()+"-"+"cbc"+"-"+"pkcs7"); }
-
-QString Cipher::getErrorTitle() { return this->errorTitle; }
-
-QString Cipher::getErrorMsg() { return this->errorMsg; }
-
-bool Cipher::getSuccess() { return this->success; }
-
-void Cipher::stopOperation() { this->canceled=true; }
-
-void Cipher::emitProgression() {
-    if(this->operation.contains("cipher"))
-        // Safety reasons : if we're doin checksums or current operation already failed, can't say progression.
-            emit progressionChanged((int)((out->size()*100)/in->size()));
-}
-
-
-/**
  * @brief Cipher::encipher : encipher a list of file with a single password
  * @param currentCipher : cipher to use
  * @param inputFiles : list of files to encipher
@@ -114,8 +124,7 @@ void Cipher::emitProgression() {
 int Cipher::encipher(QString currentCipher, QString password) {
 
     emit stepChanged("Calcul de la clé privée & autres pré-requis");
-    QCA::SecureArray salt = "testtesttesttest";
-    //QCA::SecureArray salt = QCA::Random::randomArray(16);
+    QCA::SecureArray salt = QCA::Random::randomArray(16);
 
     QCA::PBKDF2 pbkdf2;
     QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 250000); //100K or more
@@ -130,7 +139,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
      */
     emit stepChanged("Configuration du chiffrement");
     QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
-                                     QCA::Cipher::DefaultPadding, QCA::Encode,
+                                     QCA::Cipher::PKCS7, QCA::Encode,
                                      key, iv);
 
 
@@ -162,6 +171,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
 
     QCA::SecureArray encipheredData;
 
+    this->isWorking=true; //allows to emitProgression()
     while(!in->atEnd()) {
 
         /*
@@ -211,6 +221,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
 
     out->close();
     in->close();
+    this->isWorking=false;
 
     emit stepChanged("Chiffrement terminé");
     qDebug() << "Chiffrement terminé ! :)";
@@ -275,6 +286,7 @@ int Cipher::decipher(QString currentCipher, QString password) {
     QCA::SecureArray decryptedData;
 
     emit stepChanged("Déchiffrement de " + QFileInfo(in->fileName()).fileName());
+    this->isWorking=true; //allows to emitProgression()
     while(!in->atEnd()) {
 
         /*
@@ -325,6 +337,7 @@ int Cipher::decipher(QString currentCipher, QString password) {
 
     out->close();
     in->close();
+    this->isWorking=false;
 
     emit stepChanged("Déchiffrement terminé");
     return 0;
@@ -339,7 +352,6 @@ int Cipher::decipher(QString currentCipher, QString password) {
  */
 int Cipher::makeChecksum() {
 
-    //ui->progressBar->setValue(-1);
     emit stepChanged("Création du fichier checksum de " + QFileInfo(in->fileName()).fileName());
     if(!in->open(QIODevice::ReadOnly)) {
         emit stepChanged("Erreur lors de l'ouverture");

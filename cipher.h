@@ -56,7 +56,7 @@ protected:
      ********** **/
     QString errorMsg, errorTitle, operation, algo, password;
     QFile *in, *out, *checksum;
-    bool success,canceled;
+    bool success,canceled,isWorking;
 
 signals:
     void stepChanged(QString text);

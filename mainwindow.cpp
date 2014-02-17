@@ -106,12 +106,103 @@ void MainWindow::on_checksumCheckboxToMake_clicked(bool checked)
 }
 
 
+void MainWindow::on_passwordToEncipherWith_returnPressed()
+{
+    this->on_encipher_clicked();
+}
+
+void MainWindow::on_encipher_clicked() {
+
+    if(ui->filesToEncipher->text().isEmpty() || ui->passwordToEncipherWith->text().isEmpty()) {
+        QMessageBox::warning(this, "Fichier/mot de passe requis", "Il faut indiquer un fichier à chiffrer et un mot de passe.");
+        return;
+    }
+
+    cipher = new Cipher();
+
+    createDialog("Chiffrement");
+
+    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
+    connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
+    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
+    connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
+    connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
+
+    fileList=encipherList;
+
+    if(ui->checksumCheckboxToMake->isChecked())
+        currentOperation="makeChecksumAndEncipher";
+    else
+        currentOperation="encipherOnly";
+
+    this->startOperation();
+
+}
+
+void MainWindow::on_passwordToDecipherWith_returnPressed()
+{
+    this->on_decipher_clicked();
+}
+
+void MainWindow::on_decipher_clicked()
+{
+    if(ui->filesToDecipher->text().isEmpty() || ui->passwordToDecipherWith->text().isEmpty()) {
+        QMessageBox::warning(this, "Fichier/mot de passe requis", "Il faut indiquer un fichier à déchiffrer et un mot de passe.");
+        return;
+    }
+    if(ui->checksumCheckboxToCheck->isChecked() && ui->checksumFilesToCheck->text().isEmpty()) {
+        QMessageBox::warning(this, "Fichier hash requis", "Il faut indiquer un fichier de somme de hashage.");
+        return;
+    }
+    if(decipherList.size() != checksumList.size() && ui->checksumCheckboxToCheck->isChecked()) {
+        QMessageBox::critical(this, "Erreur lors du controle checksum", "Il faut un fichier .md5 par fichier à vérifier");
+        return;
+    }
+
+    cipher = new Cipher();
+
+    createDialog("Déchiffrement");
+
+    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
+    connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
+    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
+    connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
+    connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
+
+    fileList=decipherList;
+
+    currentOperation="decipher";
+
+    this->startOperation();
+
+}
+
+/**
+ * @brief MainWindow::createDialog : Create QProgressDialog /w custom params
+ * @param text : initial text to display
+ */
+void MainWindow::createDialog(QString text) {
+    dialog = new QProgressDialog(text, "Annuler", 0, 100, this);
+    dialog->setModal(true);
+    dialog->setFixedSize(600,100);
+    dialog->show();
+    dialog->setValue(0);
+}
+
+/**
+ * @brief MainWindow::setStep : changes to text in the dialog box
+ * @param text : text to display
+ */
 void MainWindow::setStep(QString text) { qDebug() << text; dialog->setLabelText(text); }
 
-
+/**
+ * @brief MainWindow::cancelOperation : stop current operation
+ */
 void MainWindow::cancelOperation() { cipher->stopOperation(); timer->stop(); }
 
-
+/**
+ * @brief MainWindow::startOperation : starts cipher operation, through this.currentOperation
+ */
 void MainWindow::startOperation() {
 
     /**
@@ -191,86 +282,4 @@ void MainWindow::startOperation() {
 
     dialog->deleteLater();
     cipher->deleteLater();
-}
-
-
-void MainWindow::on_encipher_clicked() {
-
-    if(ui->filesToEncipher->text().isEmpty() || ui->passwordToEncipherWith->text().isEmpty()) {
-        QMessageBox::warning(this, "Fichier/mot de passe requis", "Il faut indiquer un fichier à chiffrer et un mot de passe.");
-        return;
-    }
-
-    cipher = new Cipher();
-
-    createDialog("Chiffrement");
-
-    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
-    connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
-    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
-    connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
-    connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
-
-    fileList=encipherList;
-
-    if(ui->checksumCheckboxToMake->isChecked())
-        currentOperation="makeChecksumAndEncipher";
-    else
-        currentOperation="encipherOnly";
-
-    this->startOperation();
-
-}
-
-
-void MainWindow::on_decipher_clicked()
-{
-    if(ui->filesToDecipher->text().isEmpty() || ui->passwordToDecipherWith->text().isEmpty()) {
-        QMessageBox::warning(this, "Fichier/mot de passe requis", "Il faut indiquer un fichier à déchiffrer et un mot de passe.");
-        return;
-    }
-    if(ui->checksumCheckboxToCheck->isChecked() && ui->checksumFilesToCheck->text().isEmpty()) {
-        QMessageBox::warning(this, "Fichier hash requis", "Il faut indiquer un fichier de somme de hashage.");
-        return;
-    }
-    if(decipherList.size() != checksumList.size() && ui->checksumCheckboxToCheck->isChecked()) {
-        QMessageBox::critical(this, "Erreur lors du controle checksum", "Il faut un fichier .md5 par fichier à vérifier");
-        return;
-    }
-
-    cipher = new Cipher();
-
-    createDialog("Déchiffrement");
-
-    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
-    connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
-    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
-    connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
-    connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
-
-    fileList=decipherList;
-
-    currentOperation="decipher";
-
-    this->startOperation();
-
-}
-
-
-void MainWindow::createDialog(QString text) {
-    dialog = new QProgressDialog(text, "Annuler", 0, 100, this);
-    dialog->setModal(true);
-    dialog->setFixedSize(600,100);
-    dialog->show();
-    dialog->setValue(0);
-}
-
-void MainWindow::on_passwordToEncipherWith_returnPressed()
-{
-    this->on_encipher_clicked();
-}
-
-void MainWindow::on_passwordToDecipherWith_returnPressed()
-{
-    this->on_decipher_clicked();
 }

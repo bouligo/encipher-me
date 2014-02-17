@@ -62,7 +62,7 @@
         <item row="2" column="1">
          <widget class="QComboBox" name="comboBoxCipherToEncipher">
           <property name="currentIndex">
-           <number>0</number>
+           <number>2</number>
           </property>
           <item>
            <property name="text">
@@ -71,7 +71,32 @@
           </item>
           <item>
            <property name="text">
+            <string>aes192</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>aes256</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>blowfish</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>des</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>tripledes</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cast5</string>
            </property>
           </item>
          </widget>
@@ -203,7 +228,7 @@
         <item row="2" column="2">
          <widget class="QComboBox" name="comboBoxCipherToDecipher">
           <property name="currentIndex">
-           <number>0</number>
+           <number>2</number>
           </property>
           <item>
            <property name="text">
@@ -212,7 +237,32 @@
           </item>
           <item>
            <property name="text">
+            <string>aes192</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>aes256</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>blowfish</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>des</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>tripledes</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cast5</string>
            </property>
           </item>
          </widget>
