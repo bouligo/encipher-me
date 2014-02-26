@@ -8,6 +8,7 @@
 #include <QString>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QFile>
 #include <QDebug>
 
 namespace Ui {
@@ -66,6 +67,8 @@ private slots:
     void on_passwordToEncipherWith_returnPressed();
 
     void on_passwordToDecipherWith_returnPressed();
+
+    void on_expertCheckBox_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

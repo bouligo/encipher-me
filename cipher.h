@@ -7,8 +7,6 @@
 #include <QDebug>
 #include <QFileInfo>
 
-#define ENC_FILE_EXT ".p7"
-
 class Cipher : public QThread
 {
     Q_OBJECT
@@ -19,7 +17,7 @@ public:
     /** *************
      * Main methods *
      ************ **/
-    void startOperation(QString newOperation, QString inputFile, QString currentCipher = "", QString pass = "", QString checksum = "");
+    void startOperation(QString newOperation, QString inputFile, QString outputFile, QString currentCipher = "", QString pass = "", QString checksum = "", QString padding = "pkcs7", QString mode = "cbc");
     void stopOperation();
 
     /** ******
@@ -54,7 +52,9 @@ protected:
     /** ***********
      * Attributes *
      ********** **/
-    QString errorMsg, errorTitle, operation, algo, password;
+    QString errorMsg, errorTitle, operation, algo, password, fileExtension;
+    QCA::Cipher::Padding padding;
+    QCA::Cipher::Mode cipherMode;
     QFile *in, *out, *checksum;
     bool success,canceled,isWorking;
 

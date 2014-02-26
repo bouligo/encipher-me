@@ -54,6 +54,18 @@ void MainWindow::on_actionA_propos_triggered()
     QMessageBox::information(this, "À propos", "Crédits");
 }
 
+void MainWindow::on_expertCheckBox_toggled(bool checked)
+{
+    ui->expert_comboBoxCipherMode->setEnabled(checked);
+    ui->expert_comboBoxHashAlgorithm->setEnabled(checked);
+    ui->expert_comboBoxPadding->setEnabled(checked);
+    if(!checked) {
+        ui->expert_comboBoxCipherMode->setCurrentIndex(1);
+        ui->expert_comboBoxHashAlgorithm->setCurrentIndex(2);
+        ui->expert_comboBoxPadding->setCurrentIndex(1);
+    }
+}
+
 void MainWindow::on_browseForFileToEncipher_clicked()
 {
     encipherList = QFileDialog::getOpenFileNames();
@@ -67,7 +79,7 @@ void MainWindow::on_browseForFileToEncipher_clicked()
 
 void MainWindow::on_browseForFileToDecipher_clicked()
 {
-    decipherList = QFileDialog::getOpenFileNames(this, "", "", "Fichiers chiffrés (*.p7);;All (*)");
+    decipherList = QFileDialog::getOpenFileNames(this, "", "", "Fichiers chiffrés *." + ui->comboBoxCipherToDecipher->currentText() + (ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7") + "(*." + ui->comboBoxCipherToDecipher->currentText() + (ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7") + ");;All (*)");
     decipherList.sort();
     QString fileString = "";
     for(int i=0;i<decipherList.size();++i)
@@ -78,7 +90,7 @@ void MainWindow::on_browseForFileToDecipher_clicked()
 
 void MainWindow::on_browseForChecksum_clicked()
 {
-    checksumList = QFileDialog::getOpenFileNames(this, "", "", "Fichiers de contrôle (*.md5);;All(*)");
+    checksumList = QFileDialog::getOpenFileNames(this, "", "", "Fichiers de contrôle " + ui->expert_comboBoxHashAlgorithm->currentText() + " (*." + ui->expert_comboBoxHashAlgorithm->currentText() +");;All(*)");
     checksumList.sort();
     QString fileString = "";
     for(int i=0;i<checksumList.size();++i)
@@ -118,6 +130,16 @@ void MainWindow::on_encipher_clicked() {
         return;
     }
 
+
+    fileList=encipherList;
+
+    for(int i=0;i<this->fileList.size();++i) {
+        QString futureFileName=this->fileList.at(i).toAscii()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7");
+        if(QFile::exists(futureFileName))
+            if(QMessageBox::No==QMessageBox::question(this, "Ecraser ?", "Le fichier " + futureFileName + " existe déjà. Voulez vous l'écraser ?", QMessageBox::Yes|QMessageBox::No))
+                this->fileList.replace(i,QFileDialog::getOpenFileName());
+    }
+
     cipher = new Cipher();
 
     createDialog("Chiffrement");
@@ -127,8 +149,6 @@ void MainWindow::on_encipher_clicked() {
     connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
     connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
-
-    fileList=encipherList;
 
     if(ui->checksumCheckboxToMake->isChecked())
         currentOperation="makeChecksumAndEncipher";
@@ -159,6 +179,34 @@ void MainWindow::on_decipher_clicked()
         return;
     }
 
+    fileList=decipherList;
+
+    for(int i=0;i<this->fileList.size();++i) {
+        QString futureFileName = this->fileList.at(i);
+        if(futureFileName.endsWith(".p7"))
+            futureFileName.remove(futureFileName.length()-3,3);
+        if(futureFileName.endsWith(".aes128")
+                ||futureFileName.endsWith(".aes192")
+                ||futureFileName.endsWith(".aes256"))
+            futureFileName.remove(futureFileName.length()-7,7);
+        else if(futureFileName.endsWith(".blowfish"))
+            futureFileName.remove(futureFileName.length()-9,9);
+        else if(futureFileName.endsWith(".des"))
+            futureFileName.remove(futureFileName.length()-4,4);
+        else if(futureFileName.endsWith(".cast5"))
+            futureFileName.remove(futureFileName.length()-6,6);
+
+        if(QFile::exists(futureFileName))
+            if(QMessageBox::No==QMessageBox::question(this, "Ecraser ?", "Le fichier " + futureFileName + " existe déjà. Voulez vous l'écraser ?", QMessageBox::Yes|QMessageBox::No))
+                this->fileList.replace(i,QFileDialog::getOpenFileName());
+            else
+                fileList.replace(i, futureFileName);
+        else
+            fileList.replace(i, futureFileName);
+    }
+
+    fileList << decipherList;
+
     cipher = new Cipher();
 
     createDialog("Déchiffrement");
@@ -169,7 +217,7 @@ void MainWindow::on_decipher_clicked()
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
     connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
 
-    fileList=decipherList;
+
 
     currentOperation="decipher";
 
@@ -205,6 +253,9 @@ void MainWindow::cancelOperation() { cipher->stopOperation(); timer->stop(); }
  */
 void MainWindow::startOperation() {
 
+    //disable application, to prevent another thread to start
+    ui->centralWidget->setEnabled(false);
+
     /**
      * First check if previous operation (if any) was successful
      * If not, cancel all planned operation
@@ -219,18 +270,19 @@ void MainWindow::startOperation() {
     /// make checksum ...
     if(currentOperation.contains("makeChecksumAndEncipher")) {
         if(!fileList.isEmpty()) {
-            cipher->startOperation("makeChecksum", fileList.first());
+            cipher->startOperation("makeChecksum", fileList.first(), fileList.first()+"."+ui->expert_comboBoxHashAlgorithm->currentText(), ui->expert_comboBoxHashAlgorithm->currentText());
             fileList.pop_front();
             return;
         }
         fileList=encipherList;
         currentOperation="encipherOnly";
+
     }
     /// ... and then encipher (or encipher directly)
     if(currentOperation.contains("encipherOnly")) {
         if (!fileList.isEmpty()) {
 
-            cipher->startOperation("encipher", fileList.first(), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text());
+            cipher->startOperation("encipher", fileList.first(), fileList.first()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7"), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.pop_front();
             timer->start();
             return;
@@ -246,7 +298,8 @@ void MainWindow::startOperation() {
     if(currentOperation.contains("decipher")) {
         if (!fileList.isEmpty()) {
 
-            cipher->startOperation("decipher", fileList.first(), ui->comboBoxCipherToDecipher->currentText(), ui->passwordToDecipherWith->text());
+            cipher->startOperation("decipher", fileList.at(fileList.size()/2), fileList.first(), ui->comboBoxCipherToDecipher->currentText(), ui->passwordToDecipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
+            fileList.removeAt(fileList.size()/2);
             fileList.pop_front();
             timer->start();
             return;
@@ -261,7 +314,7 @@ void MainWindow::startOperation() {
     /// ... and check checksums files if required
     if(currentOperation.contains("checkChecksumOnly")) {
         if(!fileList.isEmpty()) {
-            cipher->startOperation("checkChecksum", fileList.at(fileList.size()/2), "", "", fileList.first());
+            cipher->startOperation("checkChecksum", fileList.at(fileList.size()/2).split("."+ui->comboBoxCipherToDecipher->currentText()+(ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7")).first(), "", ui->expert_comboBoxHashAlgorithm->currentText(), "", fileList.first());
             fileList.removeAt(fileList.size()/2);
             fileList.pop_front();
             return;
@@ -279,6 +332,8 @@ void MainWindow::startOperation() {
     else
         QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
 
+    //re-enables application
+    ui->centralWidget->setEnabled(true);
 
     dialog->deleteLater();
     cipher->deleteLater();

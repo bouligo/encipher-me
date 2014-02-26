@@ -6,6 +6,9 @@ Cipher::Cipher()
     //QCA::Initializer init = QCA::Initializer();
     QCA::init();
 
+    //    qDebug() << QCA::Cipher::supportedTypes();
+    //    qDebug() << QCA::Hash::supportedTypes();
+    //    qDebug() << QCA::isSupported("sha1");
     /*
      * Default error msg Initialization
      */
@@ -21,13 +24,22 @@ Cipher::Cipher()
  ************** **/
 
 
-// for now, we only use cbc mode in pkcs7 padding, 'cause... well, we'll see later on
+/**
+ * ("aes128-ecb", "aes128-cfb", "aes128-cbc", "aes128-cbc-pkcs7", "aes128-ofb", "aes192-ecb",
+ * "aes192-cfb", "aes192-cbc", "aes192-cbc-pkcs7", "aes192-ofb", "aes256-ecb", "aes256-cbc",
+ * "aes256-cbc-pkcs7", "aes256-cfb", "aes256-ofb", "blowfish-ecb", "blowfish-cbc-pkcs7", "blowfish-cbc",
+ * "blowfish-cfb", "blowfish-ofb", "tripledes-ecb", "tripledes-cbc", "des-ecb", "des-ecb-pkcs7", "des-cbc",
+ * "des-cbc-pkcs7", "des-cfb", "des-ofb", "cast5-ecb", "cast5-cbc", "cast5-cbc-pkcs7", "cast5-cfb", "cast5-ofb")
+ */
+/**
+  * ("sha1", "sha0", "ripemd160", "md2", "md4", "md5", "sha224", "sha256", "sha384", "sha512")
+  */
 /**
  * "aes128-cbc-pkcs7", "aes192-cbc-pkcs7",
  * "aes256-cbc-pkcs7", "blowfish-cbc-pkcs7", "tripledes-cbc",
  * "des-cbc-pkcs7", "cast5-cbc-pkcs7")
  */
-bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()+"-"+"cbc"); }
+bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()); }
 
 QString Cipher::getErrorTitle() { return this->errorTitle; }
 
@@ -40,9 +52,9 @@ void Cipher::stopOperation() { this->canceled=true; }
 void Cipher::emitProgression() {
     if(this->operation.contains("cipher") && this->isWorking)
         // Safety reasons : if we're doin checksums or if no encipherment operation is proceeded, can't say progression.
-            emit progressionChanged((int)((out->size()*100)/in->size()));
-    else
-        emit progressionChanged(0);
+        emit progressionChanged((int)((out->size()*100)/in->size()));
+//    else
+//        emit progressionChanged(0);
 }
 
 /** ***************
@@ -83,15 +95,20 @@ void Cipher::run() {
  * @param pass : password
  * @param checksum : checksum file
  */
-void Cipher::startOperation(QString newOperation, QString inputFile, QString currentCipher, QString pass, QString checksum) {
+void Cipher::startOperation(QString newOperation, QString inputFile, QString outputFile,QString currentCipher, QString pass, QString checksum, QString padding, QString mode) {
 
     /*
      * First, check if the cipher is supported in current configuration
      */
     emit stepChanged("Vérification des pré-requis");
 
-    //(!currentCipher.isEmpty()) because of (check/make)Checksum
-    if(!currentCipher.isEmpty() && !checkCipherAvailability(currentCipher)) {
+    bool isCipherAvailable=true;
+    if(newOperation.contains("Checksum"))
+        isCipherAvailable=checkCipherAvailability(currentCipher);
+    else
+        isCipherAvailable=checkCipherAvailability(currentCipher + "-" + mode + (padding.isEmpty() ? "" : "-" + padding));
+
+    if(!isCipherAvailable) {
         emit stepChanged("Erreur");
         this->errorMsg = "L'algorithme désiré <b>" + currentCipher + "</b> n'est pas supporté par la configuration courante.";
         this->errorTitle = "Erreur";
@@ -104,8 +121,26 @@ void Cipher::startOperation(QString newOperation, QString inputFile, QString cur
     this->operation = newOperation;
     this->algo = currentCipher;
     this->in = new QFile(inputFile);
+    this->out = new QFile(outputFile);
     this->password = pass;
     this->checksum = new QFile(checksum);
+
+    if(padding.contains("pkcs7"))
+        this->padding = QCA::Cipher::PKCS7;
+    else
+        this->padding = QCA::Cipher::NoPadding;
+
+
+    if (mode.contains("ecb"))
+        this->cipherMode = QCA::Cipher::ECB;
+    else if(mode.contains("cbc"))
+        this->cipherMode = QCA::Cipher::CBC;
+    else if(mode.contains("cfb"))
+        this->cipherMode = QCA::Cipher::CFB;
+    else if(mode.contains("ofb"))
+        this->cipherMode = QCA::Cipher::OFB;
+    else
+        this->cipherMode = QCA::Cipher::CBC;
 
     this->start();
 }
@@ -138,8 +173,8 @@ int Cipher::encipher(QString currentCipher, QString password) {
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
      */
     emit stepChanged("Configuration du chiffrement");
-    QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
-                                     QCA::Cipher::PKCS7, QCA::Encode,
+    QCA::Cipher cipher = QCA::Cipher(currentCipher, this->cipherMode,
+                                     this->padding, QCA::Encode,
                                      key, iv);
 
 
@@ -154,8 +189,8 @@ int Cipher::encipher(QString currentCipher, QString password) {
     }
 
     //... into this file
-    emit stepChanged("Ouverture de " + QFileInfo(in->fileName()).fileName()+ENC_FILE_EXT);
-    out = new QFile(in->fileName() + ENC_FILE_EXT);
+    emit stepChanged("Ouverture de " + QFileInfo(out->fileName()).fileName());
+    //out = new QFile(in->fileName() + this->fileExtension);
     if (!out->open(QIODevice::WriteOnly)) {
         emit stepChanged("Erreur lors de l'écriture");
         this->errorMsg = "Erreur lors de l'écriture dans le fichier " + QFileInfo(out->fileName()).fileName();
@@ -205,8 +240,9 @@ int Cipher::encipher(QString currentCipher, QString password) {
         out->write(encipheredData.data(),(qint64) encipheredData.size());
     }
 
+
     encipheredData = cipher.final();
-    out->write(encipheredData.data(),(qint64) encipheredData.size());
+
 
     //checks if final succeded
     if (!cipher.ok())
@@ -215,16 +251,18 @@ int Cipher::encipher(QString currentCipher, QString password) {
         this->errorMsg = "Erreur lors du padding des données de " + QFileInfo(in->fileName()).fileName();
         this->errorTitle = "Erreur lors du padding";
         this->success=false;
+        out->close();
+        in->close();
+        this->isWorking=false;
         return 42;
     }
-
+    out->write(encipheredData.data(),(qint64) encipheredData.size());
 
     out->close();
     in->close();
     this->isWorking=false;
 
     emit stepChanged("Chiffrement terminé");
-    qDebug() << "Chiffrement terminé ! :)";
     return 0;
 
 }
@@ -252,11 +290,11 @@ int Cipher::decipher(QString currentCipher, QString password) {
         return 1;
     }
 
-    out = new QFile(in->fileName().split(ENC_FILE_EXT).first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .p7?*/
+    //out = new QFile(in->fileName().split(this->fileExtension).first()); /** TODO: tester l'existance du fichier, ou si source=dest + extension .p7?*/
     emit stepChanged("Écriture de " + QFileInfo(out->fileName()).fileName());
     if (!out->open(QIODevice::WriteOnly)) {
         emit stepChanged("Erreur lors de l'écriture");
-        this->errorMsg = "Erreur lors de l'écriture dans le fichier" + QFileInfo(out->fileName()).fileName().split(ENC_FILE_EXT).first();
+        this->errorMsg = "Erreur lors de l'écriture dans le fichier" + QFileInfo(out->fileName()).fileName();
         this->errorTitle = "Erreur lors du déchiffrement";
         this->success=false;
         return 2;
@@ -279,8 +317,8 @@ int Cipher::decipher(QString currentCipher, QString password) {
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
      */
     emit stepChanged("Configuration du déchiffrement");
-    QCA::Cipher cipher = QCA::Cipher(currentCipher, QCA::Cipher::CBC,
-                                     QCA::Cipher::DefaultPadding, QCA::Decode,
+    QCA::Cipher cipher = QCA::Cipher(currentCipher, this->cipherMode,
+                                     this->padding, QCA::Decode,
                                      key, iv);
 
     QCA::SecureArray decryptedData;
@@ -330,6 +368,9 @@ int Cipher::decipher(QString currentCipher, QString password) {
         this->errorMsg = "Erreur lors du déchiffrement final de " + QFileInfo(in->fileName()).fileName();
         this->errorTitle = "Erreur lors du déchiffrement";
         this->success=false;
+        out->close();
+        in->close();
+        this->isWorking=false;
         return 42;
     }
 
@@ -360,14 +401,12 @@ int Cipher::makeChecksum() {
         this->success=false;
         return 1;
     }
-    QCA::Hash hash("md5");
+    QCA::Hash hash(this->algo);
     hash.update(in);
     QString md5hash = hash.final().toByteArray().toHex();
     in->close();
 
     /* TODO: check errors ? */
-
-    out = new QFile(QFileInfo(in->fileName()).fileName() + ".md5");
     if(!out->open(QIODevice::WriteOnly)) {
         emit stepChanged("Erreur lors de l'écriture du fichier");
         this->errorMsg = "Erreur lors de la création du fichier" + QFileInfo(QFileInfo(in->fileName()).fileName()).fileName() + ".md5";
@@ -395,7 +434,7 @@ int Cipher::makeChecksum() {
 int Cipher::checkChecksum() {
     emit stepChanged("Vérification de la somme de contrôle");
 
-    if(QFileInfo(in->fileName()).fileName().split(ENC_FILE_EXT).first().compare(QFileInfo(checksum->fileName()).fileName().split(".md5").first())!=0) {
+    if(QFileInfo(in->fileName()).fileName().compare(QFileInfo(checksum->fileName()).fileName().split("."+this->algo).first())!=0) {
         emit stepChanged("Erreur lors de la correspondance des fichiers");
         this->errorMsg = "La vérification de l'intégrité du fichier a échoué. Vérifiez que les noms correspondent :<br /><br />fichier.txt --> fichier.txt.md5";
         this->errorTitle = "Erreur lors du controle checksum";
@@ -403,10 +442,10 @@ int Cipher::checkChecksum() {
         return 10;
     }
 
-    in->setFileName(in->fileName().split(ENC_FILE_EXT).first());
+    //in->setFileName(in->fileName());
     if(!in->open(QIODevice::ReadOnly)) {
         emit stepChanged("Erreur lors de l'ouverture");
-        this->errorMsg = "Erreur lors de l'ouverture du fichier" + QFileInfo(QFileInfo(in->fileName()).fileName()).fileName().split(ENC_FILE_EXT).first().toAscii();
+        this->errorMsg = "Erreur lors de l'ouverture du fichier" + QFileInfo(in->fileName()).fileName().toAscii();
         this->errorTitle = "Erreur lors du controle checksum";
         this->success=false;
         return 1;
@@ -424,7 +463,7 @@ int Cipher::checkChecksum() {
     QString contentOfChecksumFile = checksum->readAll();
     contentOfChecksumFile=contentOfChecksumFile.split("\n").first();
 
-    QCA::Hash hash("md5");
+    QCA::Hash hash(this->algo);
     hash.update(in);
     QString md5hash = hash.final().toByteArray().toHex();
     in->close();
@@ -432,7 +471,7 @@ int Cipher::checkChecksum() {
 
     if(contentOfChecksumFile.compare(md5hash) != 0) {
         emit stepChanged("Erreur lors de la vérification du fichier");
-        this->errorMsg = "Les fichiers<br />" + QFileInfo(in->fileName()).fileName().split(ENC_FILE_EXT).first() + "<br />et<br />" + QFileInfo(checksum->fileName()).fileName() + "<br />ne correspondent pas";
+        this->errorMsg = "Les fichiers<br />" + QFileInfo(in->fileName()).fileName().split(this->fileExtension).first() + "<br />et<br />" + QFileInfo(checksum->fileName()).fileName() + "<br />ne correspondent pas";
         this->errorTitle = "Erreur lors du controle checksum";
         this->success=false;
         return 42;

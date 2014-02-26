@@ -1,13 +1,22 @@
 /**
+ * to check next : decipher /w other ext
+ *
+ * In current commit : removal of tripledes / md2 (buggy /w my version of qca)
+ *                      new extension management
+ * quick fix
+ *
+ * /**
  *  TODO:
- *  List possible algorithms / modes
  *  Change icon
- *  secured deletion /w abstract inherited class
- *  Code factorisation
- *  Label progress while checksum-ing :)
+ * read cipher functions (for names, and sooo on)!!
+ * cipher.startOperation : QStringList ?
+ *  secured deletion /w abstract inherited class (QString binary = QString::number(QString("0x0").toLongLong(0, 16), 2);)
+ *  tooltips à faire
+ *  Code factorisation (return code for cipher)
+ * better error msg when not compatible
+ *  Label progress while checksum-ing :) => nope, new (custom ?)QDialogProgress layout
  *  Make a difference for release/debug (#define, #ifdef)
  *  logfile (x.img enciphered with aes256-cbc at ...
- *  start operation when pressing enter
  *  Emit warning when a file will be overwritten (and make open/closeFile function)
  *
  *  -cli alternative
@@ -26,6 +35,4 @@ int main(int argc, char *argv[])
     w.show();
 
     return a.exec();
-
-
 }

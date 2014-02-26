@@ -91,11 +91,6 @@
           </item>
           <item>
            <property name="text">
-            <string>tripledes</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
             <string>cast5</string>
            </property>
           </item>
@@ -257,11 +252,6 @@
           </item>
           <item>
            <property name="text">
-            <string>tripledes</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
             <string>cast5</string>
            </property>
           </item>
@@ -273,6 +263,141 @@
        <attribute name="title">
         <string>Options</string>
        </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="expertCheckBox">
+          <property name="text">
+           <string>Mode Expert</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_7">
+          <property name="text">
+           <string>Mode de chiffrement</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="expert_comboBoxCipherMode">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <item>
+           <property name="text">
+            <string>ecb</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cbc</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cfb</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>ofb</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Padding des données</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="expert_comboBoxPadding">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <item>
+           <property name="text">
+            <string/>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>pkcs7</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_9">
+          <property name="text">
+           <string>Algorithme de hashage</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="expert_comboBoxHashAlgorithm">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <item>
+           <property name="text">
+            <string>md4</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>md5</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha0</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha1</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha224</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha256</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha384</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>sha512</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>ripemd160</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
