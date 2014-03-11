@@ -31,9 +31,18 @@ void Progression::setCurrentNumberOfFiles(int value) {
 }
 
 void Progression::setTotalNumberOfFiles(int value) {
+    if(value==1)
+        ui->totalProgressBar->setFormat("%v / %m fichier");
+    else
+        ui->totalProgressBar->setFormat("%v / %m fichiers");
+
     ui->totalProgressBar->setMaximum(value);
 }
 
 void Progression::setLabelText(QString step) {
     ui->label->setText(step);
+}
+
+void Progression::showCurrentProgression(bool toggle) {
+    ui->currentProgressBar->setShown(toggle);
 }

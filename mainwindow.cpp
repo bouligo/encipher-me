@@ -274,6 +274,7 @@ void MainWindow::startOperation() {
      */
     /// make checksum ...
     if(currentOperation.contains("makeChecksumAndEncipher")) {
+        dialog->showCurrentProgression(false);
         if(!fileList.isEmpty()) {
             cipher->startOperation("makeChecksum", fileList.first(), fileList.first()+"."+ui->expert_comboBoxHashAlgorithm->currentText(), ui->expert_comboBoxHashAlgorithm->currentText());
             fileList.pop_front();
@@ -286,6 +287,7 @@ void MainWindow::startOperation() {
     }
     /// ... and then encipher (or encipher directly)
     if(currentOperation.contains("encipherOnly")) {
+        dialog->showCurrentProgression(true);
         if (!fileList.isEmpty()) {
             cipher->startOperation("encipher", fileList.first(), fileList.first()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7"), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.pop_front();
@@ -301,6 +303,7 @@ void MainWindow::startOperation() {
      */
     /// Decipher ...
     if(currentOperation.contains("decipher")) {
+        dialog->showCurrentProgression(true);
         if (!fileList.isEmpty()) {
             bool result = cipher->startOperation("decipher", fileList.at(fileList.size()/2), fileList.first(), ui->comboBoxCipherToDecipher->currentText(), ui->passwordToDecipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.removeAt(fileList.size()/2);
@@ -323,6 +326,7 @@ void MainWindow::startOperation() {
     }
     /// ... and check checksums files if required
     if(currentOperation.contains("checkChecksumOnly")) {
+        dialog->showCurrentProgression(false);
         if(!fileList.isEmpty()) {
             cipher->startOperation("checkChecksum", fileList.at(fileList.size()/2).split("."+ui->comboBoxCipherToDecipher->currentText()+(ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7")).first(), "", ui->expert_comboBoxHashAlgorithm->currentText(), "", fileList.first());
             fileList.removeAt(fileList.size()/2);

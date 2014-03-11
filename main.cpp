@@ -4,7 +4,6 @@
  * /**
  *  TODO:
  * add "yes to all" for overwrite
- *  1/1 "fichiers" + hide 0% when checksum-ing
  *  Change icon
  * cipher.startOperation : QStringList ?
  *  secured deletion /w abstract inherited class (QString binary = QString::number(QString("0x0").toLongLong(0, 16), 2);)
@@ -13,7 +12,6 @@
  * better error msg when not compatible
  *  Make a difference for release/debug (#define, #ifdef)
  *  logfile (x.img enciphered with aes256-cbc at ...
- * suppress MainWindow::setStep ?
  *
  *  -cli alternative
  */

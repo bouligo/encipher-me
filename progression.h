@@ -18,6 +18,7 @@ public:
 
     void setTotalNumberOfFiles(int value);
     void setCurrentNumberOfFiles(int value);
+    void showCurrentProgression(bool toggle);
 
 public slots:
     void on_buttonBox_clicked(QAbstractButton *button);
