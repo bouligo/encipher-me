@@ -9,14 +9,8 @@ Cipher::Cipher()
     //    qDebug() << QCA::Cipher::supportedTypes();
     //    qDebug() << QCA::Hash::supportedTypes();
     //    qDebug() << QCA::isSupported("sha1");
-    /*
-     * Default error msg Initialization
-     */
-    this->errorMsg="Unknown Error";
-    this->errorTitle="Unknown Error";
-    this->success=true;
-    this->canceled=false;
-    this->isWorking=false;
+
+    initState();
 }
 
 /** ***************
@@ -47,6 +41,8 @@ QString Cipher::getErrorMsg() { return this->errorMsg; }
 
 bool Cipher::getSuccess() { return this->success; }
 
+bool Cipher::getCanceled() { return this->canceled; }
+
 void Cipher::stopOperation() { this->canceled=true; }
 
 void Cipher::emitProgression() {
@@ -55,6 +51,17 @@ void Cipher::emitProgression() {
         emit progressionChanged((int)((out->size()*100)/in->size()));
 //    else
 //        emit progressionChanged(0);
+}
+
+void Cipher::initState() {
+    /*
+     * Default error msg Initialization
+     */
+    this->errorMsg="Unknown Error";
+    this->errorTitle="Unknown Error";
+    this->success=true;
+    this->canceled=false;
+    this->isWorking=false;
 }
 
 /** ***************
@@ -76,6 +83,9 @@ void Cipher::emitProgression() {
  * @brief Cipher::run : inherited by QThread
  */
 void Cipher::run() {
+
+    initState();
+
     if(this->operation.contains("encipher"))
         this->encipher(this->algo, this->password);
     if(this->operation.contains("decipher"))
@@ -95,12 +105,13 @@ void Cipher::run() {
  * @param pass : password
  * @param checksum : checksum file
  */
-void Cipher::startOperation(QString newOperation, QString inputFile, QString outputFile,QString currentCipher, QString pass, QString checksum, QString padding, QString mode) {
+bool Cipher::startOperation(QString newOperation, QString inputFile, QString outputFile,QString currentCipher, QString pass, QString checksum, QString padding, QString mode) {
 
     /*
      * First, check if the cipher is supported in current configuration
      */
     emit stepChanged("Vérification des pré-requis");
+    emit progressionChanged(0); //manual refresh of QProgressBar in instance Progression
 
     bool isCipherAvailable=true;
     if(newOperation.contains("Checksum"))
@@ -113,13 +124,20 @@ void Cipher::startOperation(QString newOperation, QString inputFile, QString out
         this->errorMsg = "L'algorithme désiré <b>" + currentCipher + "</b> n'est pas supporté par la configuration courante.";
         this->errorTitle = "Erreur";
         this->success=false;
-        emit finished();
-        return;
+        return false;
     }
 
 
     this->operation = newOperation;
     this->algo = currentCipher;
+
+    if(inputFile.compare(outputFile)==0) {
+        this->errorMsg="Les fichiers sources et destination sont identiques :<br />" + inputFile;
+        this->errorTitle="Erreur";
+        this->success=false;
+        return false;
+    }
+
     this->in = new QFile(inputFile);
     this->out = new QFile(outputFile);
     this->password = pass;
@@ -143,6 +161,8 @@ void Cipher::startOperation(QString newOperation, QString inputFile, QString out
         this->cipherMode = QCA::Cipher::CBC;
 
     this->start();
+
+    return true;
 }
 
 /**
@@ -218,6 +238,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
             this->errorMsg = "Chiffrement de " + QFileInfo(in->fileName()).fileName() + " annulé.";
             this->errorTitle = "Chiffrement annulé";
             this->success=false;
+            this->canceled=true;
             emit stepChanged("Chiffrement annulé");
             return 20;
         }
@@ -263,6 +284,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
     this->isWorking=false;
 
     emit stepChanged("Chiffrement terminé");
+    emit progressionChanged(100);
     return 0;
 
 }
@@ -336,6 +358,7 @@ int Cipher::decipher(QString currentCipher, QString password) {
             this->errorMsg = "Déchiffrement de " + QFileInfo(in->fileName()).fileName() + " annulé.";
             this->errorTitle = "Déchiffrement annulé";
             this->success=false;
+            this->canceled=true;
             emit stepChanged("Déchiffrement annulé");
             return 20;
         }
@@ -381,6 +404,7 @@ int Cipher::decipher(QString currentCipher, QString password) {
     this->isWorking=false;
 
     emit stepChanged("Déchiffrement terminé");
+    emit progressionChanged(100);
     return 0;
 }
 
@@ -432,7 +456,7 @@ int Cipher::makeChecksum() {
  * @return 42 : md5 check fails
  */
 int Cipher::checkChecksum() {
-    emit stepChanged("Vérification de la somme de contrôle");
+    emit stepChanged("Vérification de " + QFileInfo(in->fileName()).fileName());
 
     if(QFileInfo(in->fileName()).fileName().compare(QFileInfo(checksum->fileName()).fileName().split("."+this->algo).first())!=0) {
         emit stepChanged("Erreur lors de la correspondance des fichiers");
@@ -442,7 +466,6 @@ int Cipher::checkChecksum() {
         return 10;
     }
 
-    //in->setFileName(in->fileName());
     if(!in->open(QIODevice::ReadOnly)) {
         emit stepChanged("Erreur lors de l'ouverture");
         this->errorMsg = "Erreur lors de l'ouverture du fichier" + QFileInfo(in->fileName()).fileName().toAscii();
@@ -471,7 +494,7 @@ int Cipher::checkChecksum() {
 
     if(contentOfChecksumFile.compare(md5hash) != 0) {
         emit stepChanged("Erreur lors de la vérification du fichier");
-        this->errorMsg = "Les fichiers<br />" + QFileInfo(in->fileName()).fileName().split(this->fileExtension).first() + "<br />et<br />" + QFileInfo(checksum->fileName()).fileName() + "<br />ne correspondent pas";
+        this->errorMsg = "Les fichiers<br />" + QFileInfo(in->fileName()).fileName() + "<br />et<br />" + QFileInfo(checksum->fileName()).fileName() + "<br />ne correspondent pas";
         this->errorTitle = "Erreur lors du controle checksum";
         this->success=false;
         return 42;

@@ -2,8 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QProgressDialog>
 #include "cipher.h"
+#include "progression.h"
 #include <QTimer>
 #include <QString>
 #include <QMessageBox>
@@ -72,7 +72,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    QProgressDialog *dialog;
+    Progression *dialog;
     QTimer *timer;
     Cipher *cipher;
     QStringList checksumList, encipherList, decipherList, fileList;

@@ -143,10 +143,11 @@ void MainWindow::on_encipher_clicked() {
     cipher = new Cipher();
 
     createDialog("Chiffrement");
+    dialog->setTotalNumberOfFiles(fileList.size());
 
     connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
     connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
-    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
+    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setCurrentProgression(int)));
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
     connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
 
@@ -175,7 +176,7 @@ void MainWindow::on_decipher_clicked()
         return;
     }
     if(decipherList.size() != checksumList.size() && ui->checksumCheckboxToCheck->isChecked()) {
-        QMessageBox::critical(this, "Erreur lors du controle checksum", "Il faut un fichier .md5 par fichier à vérifier");
+        QMessageBox::critical(this, "Erreur lors du controle checksum", "Il faut un fichier de controle par fichier à vérifier");
         return;
     }
 
@@ -210,14 +211,13 @@ void MainWindow::on_decipher_clicked()
     cipher = new Cipher();
 
     createDialog("Déchiffrement");
+    dialog->setTotalNumberOfFiles(fileList.size()/2);
 
     connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
     connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
-    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setValue(int)));
+    connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setCurrentProgression(int)));
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
     connect(timer, SIGNAL(timeout()), cipher, SLOT(emitProgression()));
-
-
 
     currentOperation="decipher";
 
@@ -226,15 +226,16 @@ void MainWindow::on_decipher_clicked()
 }
 
 /**
- * @brief MainWindow::createDialog : Create QProgressDialog /w custom params
+ * @brief MainWindow::create : Create QProgressDialog /w custom params
  * @param text : initial text to display
  */
 void MainWindow::createDialog(QString text) {
-    dialog = new QProgressDialog(text, "Annuler", 0, 100, this);
-    dialog->setModal(true);
-    dialog->setFixedSize(600,100);
+    //    dialog = new QProgressDialog(text, "Annuler", 0, 100, this);
+    //    dialog->setModal(true);
+
+
+    dialog = new Progression(text);
     dialog->show();
-    dialog->setValue(0);
 }
 
 /**
@@ -253,16 +254,29 @@ void MainWindow::cancelOperation() { cipher->stopOperation(); timer->stop(); }
  */
 void MainWindow::startOperation() {
 
-    //disable application, to prevent another thread to start
+    //disable application, to prevent user to start another thread
     ui->centralWidget->setEnabled(false);
 
     /**
      * First check if previous operation (if any) was successful
      * If not, cancel all planned operation
+     * If error while doing operation on checksums, continue
      */
-    if(!cipher->getSuccess())
+    if(!cipher->getSuccess() && currentOperation.contains("Checksum"))
+        QMessageBox::warning(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+    else if(!cipher->getSuccess())
+        QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+    if(cipher->getCanceled())
         currentOperation="";
 
+    /**
+     * Update 2nd QProgressBar
+     */
+    if(currentOperation.contains("makeChecksumAndEncipher")
+            ||currentOperation.contains("encipherOnly"))
+        dialog->setCurrentNumberOfFiles(encipherList.size() - fileList.size());
+    else
+        dialog->setCurrentNumberOfFiles(decipherList.size() - (fileList.size()/2));
 
     /**
      * Current operation is to make a checksum and to encipher
@@ -275,13 +289,13 @@ void MainWindow::startOperation() {
             return;
         }
         fileList=encipherList;
+        dialog->setCurrentNumberOfFiles(encipherList.size() - fileList.size());
         currentOperation="encipherOnly";
 
     }
     /// ... and then encipher (or encipher directly)
     if(currentOperation.contains("encipherOnly")) {
         if (!fileList.isEmpty()) {
-
             cipher->startOperation("encipher", fileList.first(), fileList.first()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7"), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.pop_front();
             timer->start();
@@ -297,17 +311,22 @@ void MainWindow::startOperation() {
     /// Decipher ...
     if(currentOperation.contains("decipher")) {
         if (!fileList.isEmpty()) {
-
-            cipher->startOperation("decipher", fileList.at(fileList.size()/2), fileList.first(), ui->comboBoxCipherToDecipher->currentText(), ui->passwordToDecipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
+            bool result = cipher->startOperation("decipher", fileList.at(fileList.size()/2), fileList.first(), ui->comboBoxCipherToDecipher->currentText(), ui->passwordToDecipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.removeAt(fileList.size()/2);
             fileList.pop_front();
-            timer->start();
+
+            if(!result)
+                this->startOperation();
+            else
+                timer->start();
+
             return;
         }
         timer->stop();
         if(ui->checksumCheckboxToCheck->isChecked()) {
             fileList=checksumList;
             fileList << decipherList;
+            dialog->setCurrentNumberOfFiles(encipherList.size() - (fileList.size()/2));
             currentOperation="checkChecksumOnly";
         }
     }
@@ -327,10 +346,10 @@ void MainWindow::startOperation() {
      */
     ///TODO
 
-    if(cipher->getSuccess())
-        QMessageBox::information(this, "terminé", "Opération terminée avec succès !");
+    if(cipher->getCanceled())
+        QMessageBox::critical(this, "Annulé", "Opération annulée");
     else
-        QMessageBox::critical(this, cipher->getErrorTitle(), cipher->getErrorMsg());
+        QMessageBox::information(this, "terminé", "Opération terminée");
 
     //re-enables application
     ui->centralWidget->setEnabled(true);

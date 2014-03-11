@@ -17,13 +17,14 @@ public:
     /** *************
      * Main methods *
      ************ **/
-    void startOperation(QString newOperation, QString inputFile, QString outputFile, QString currentCipher = "", QString pass = "", QString checksum = "", QString padding = "pkcs7", QString mode = "cbc");
+    bool startOperation(QString newOperation, QString inputFile, QString outputFile, QString currentCipher = "", QString pass = "", QString checksum = "", QString padding = "pkcs7", QString mode = "cbc");
     void stopOperation();
 
     /** ******
      * Tools *
      ***** **/
     bool checkCipherAvailability(QString currentCipher);
+    void initState();
 
     /** ******************
      * Getters / Setters *
@@ -31,6 +32,7 @@ public:
     QString getErrorTitle();
     QString getErrorMsg();
     bool getSuccess();
+    bool getCanceled();
 
 protected:
     /**
