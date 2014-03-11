@@ -8,7 +8,7 @@
  *  Change icon
  * cipher.startOperation : QStringList ?
  *  secured deletion /w abstract inherited class (QString binary = QString::number(QString("0x0").toLongLong(0, 16), 2);)
- *  tooltips à faire
+ *  tooltips à faire // needed for release
  *  Code factorisation (return code for cipher)
  * better error msg when not compatible
  *  Make a difference for release/debug (#define, #ifdef)
@@ -27,8 +27,13 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    MainWindow w;
-    w.show();
-
-    return a.exec();
+    if(argc>1) {
+        /**
+         * working through CLI
+         */
+    } else {
+        MainWindow w;
+        w.show();
+        return a.exec();
+    }
 }

@@ -16,14 +16,13 @@ public:
     explicit Progression(QString text, QWidget *parent = 0);
     ~Progression();
 
-    void setLabelText(QString step);
     void setTotalNumberOfFiles(int value);
     void setCurrentNumberOfFiles(int value);
 
-private slots:
+public slots:
     void on_buttonBox_clicked(QAbstractButton *button);
     void setCurrentProgression(int value);
-
+    void setLabelText(QString step);
 
 signals:
     void canceled();

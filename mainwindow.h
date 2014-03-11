@@ -11,6 +11,8 @@
 #include <QFile>
 #include <QDebug>
 
+#define VERSION "0.7"
+
 namespace Ui {
 class MainWindow;
 }
@@ -56,7 +58,6 @@ private slots:
      * Custom slots *
      ************* **/
 
-    void setStep(QString text);
     void cancelOperation();
 
     /** ******

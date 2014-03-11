@@ -46,12 +46,13 @@ void MainWindow::on_actionQuitter_triggered()
 
 void MainWindow::on_actionAide_triggered()
 {
-    QMessageBox::information(this, "Aide", "Aide à afficher");
+    QMessageBox::information(this, "Aide", "Les deux onglets \"Chiffrer\" et \"Déchiffrer\" permettent les opérations de base.<br />\
+                             Si vous souhaitez d'avantage d'options, le mode expert permet de choisir l'algorithme de hash, le mode de (dé-)chiffrement ou le padding des fichiers.");
 }
 
 void MainWindow::on_actionA_propos_triggered()
 {
-    QMessageBox::information(this, "À propos", "Crédits");
+    QMessageBox::information(this, "À propos", QString("Encipher-me v").append(VERSION) + "<br /><br />by Almazys");
 }
 
 void MainWindow::on_expertCheckBox_toggled(bool checked)
@@ -145,7 +146,7 @@ void MainWindow::on_encipher_clicked() {
     createDialog("Chiffrement");
     dialog->setTotalNumberOfFiles(fileList.size());
 
-    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
+    connect(cipher, SIGNAL(stepChanged(QString)), dialog, SLOT(setLabelText(QString)));
     connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
     connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setCurrentProgression(int)));
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
@@ -213,7 +214,7 @@ void MainWindow::on_decipher_clicked()
     createDialog("Déchiffrement");
     dialog->setTotalNumberOfFiles(fileList.size()/2);
 
-    connect(cipher, SIGNAL(stepChanged(QString)), this, SLOT(setStep(QString)));
+    connect(cipher, SIGNAL(stepChanged(QString)), dialog, SLOT(setLabelText(QString)));
     connect(cipher, SIGNAL(finished()), this, SLOT(startOperation()));
     connect(cipher, SIGNAL(progressionChanged(int)), dialog, SLOT(setCurrentProgression(int)));
     connect(dialog, SIGNAL(canceled()), this, SLOT(cancelOperation()));
@@ -230,19 +231,9 @@ void MainWindow::on_decipher_clicked()
  * @param text : initial text to display
  */
 void MainWindow::createDialog(QString text) {
-    //    dialog = new QProgressDialog(text, "Annuler", 0, 100, this);
-    //    dialog->setModal(true);
-
-
     dialog = new Progression(text);
     dialog->show();
 }
-
-/**
- * @brief MainWindow::setStep : changes to text in the dialog box
- * @param text : text to display
- */
-void MainWindow::setStep(QString text) { qDebug() << text; dialog->setLabelText(text); }
 
 /**
  * @brief MainWindow::cancelOperation : stop current operation
