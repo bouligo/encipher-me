@@ -284,13 +284,8 @@
            <bool>false</bool>
           </property>
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
-          <item>
-           <property name="text">
-            <string>ecb</string>
-           </property>
-          </item>
           <item>
            <property name="text">
             <string>cbc</string>

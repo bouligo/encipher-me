@@ -17,22 +17,6 @@ Cipher::Cipher()
  * Tools & slots  *
  ************** **/
 
-
-/**
- * ("aes128-ecb", "aes128-cfb", "aes128-cbc", "aes128-cbc-pkcs7", "aes128-ofb", "aes192-ecb",
- * "aes192-cfb", "aes192-cbc", "aes192-cbc-pkcs7", "aes192-ofb", "aes256-ecb", "aes256-cbc",
- * "aes256-cbc-pkcs7", "aes256-cfb", "aes256-ofb", "blowfish-ecb", "blowfish-cbc-pkcs7", "blowfish-cbc",
- * "blowfish-cfb", "blowfish-ofb", "tripledes-ecb", "tripledes-cbc", "des-ecb", "des-ecb-pkcs7", "des-cbc",
- * "des-cbc-pkcs7", "des-cfb", "des-ofb", "cast5-ecb", "cast5-cbc", "cast5-cbc-pkcs7", "cast5-cfb", "cast5-ofb")
- */
-/**
-  * ("sha1", "sha0", "ripemd160", "md2", "md4", "md5", "sha224", "sha256", "sha384", "sha512")
-  */
-/**
- * "aes128-cbc-pkcs7", "aes192-cbc-pkcs7",
- * "aes256-cbc-pkcs7", "blowfish-cbc-pkcs7", "tripledes-cbc",
- * "des-cbc-pkcs7", "cast5-cbc-pkcs7")
- */
 bool Cipher::checkCipherAvailability(QString currentCipher) { return QCA::isSupported(currentCipher.toAscii()); }
 
 QString Cipher::getErrorTitle() { return this->errorTitle; }
@@ -149,9 +133,7 @@ bool Cipher::startOperation(QString newOperation, QString inputFile, QString out
         this->padding = QCA::Cipher::NoPadding;
 
 
-    if (mode.contains("ecb"))
-        this->cipherMode = QCA::Cipher::ECB;
-    else if(mode.contains("cbc"))
+    if(mode.contains("cbc"))
         this->cipherMode = QCA::Cipher::CBC;
     else if(mode.contains("cfb"))
         this->cipherMode = QCA::Cipher::CFB;
@@ -180,13 +162,14 @@ int Cipher::encipher(QString currentCipher, QString password) {
 
     emit stepChanged("Calcul de la clé privée & autres pré-requis");
     QCA::SecureArray salt = QCA::Random::randomArray(16);
+    QCA::InitializationVector iv = QCA::Random::randomArray(16);
 
     QCA::PBKDF2 pbkdf2;
     QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 250000); //100K or more
 
-    QCA::Hash hash("md5");
-    hash.update(key.toByteArray());
-    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
+//    QCA::Hash hash("md5");
+//    hash.update(key.toByteArray());
+//    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
 
 
     /*
@@ -221,8 +204,8 @@ int Cipher::encipher(QString currentCipher, QString password) {
 
 
     emit stepChanged("Chiffrement de " + QFileInfo(QFileInfo(in->fileName()).fileName()).fileName());
-    /*we write magic 8 bytes + salt (16 bytes for now) */
-    out->write("Salted__" + salt.toByteArray());
+    /*we write magic 8 bytes + salt (16 bytes for now) + IV */
+    out->write("Salted__" + salt.toByteArray() + iv.toByteArray());
 
     QCA::SecureArray encipheredData;
 
@@ -326,14 +309,15 @@ int Cipher::decipher(QString currentCipher, QString password) {
 
     in->read(8); //ignore first 8 bytes
     QCA::SecureArray salt = in->read(16);
+    QCA::InitializationVector iv = in->read(16);
 
 
     QCA::PBKDF2 pbkdf2;
     QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 250000); //100K or more
 
-    QCA::Hash hash("md5");
-    hash.update(key.toByteArray());
-    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
+//    QCA::Hash hash("md5");
+//    hash.update(key.toByteArray());
+//    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
 
     /*
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector

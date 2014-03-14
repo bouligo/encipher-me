@@ -1,5 +1,5 @@
 /**
- *
+ * TODO NEXT : write IV & key length
  *
  * /**
  *  TODO:
