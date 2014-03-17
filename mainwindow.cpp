@@ -276,8 +276,10 @@ void MainWindow::startOperation() {
     if(currentOperation.contains("makeChecksumAndEncipher")) {
         dialog->showCurrentProgression(false);
         if(!fileList.isEmpty()) {
-            cipher->startOperation("makeChecksum", fileList.first(), fileList.first()+"."+ui->expert_comboBoxHashAlgorithm->currentText(), ui->expert_comboBoxHashAlgorithm->currentText());
+            bool result = cipher->startOperation("makeChecksum", fileList.first(), fileList.first()+"."+ui->expert_comboBoxHashAlgorithm->currentText(), ui->expert_comboBoxHashAlgorithm->currentText());
             fileList.pop_front();
+            if(!result)
+                this->startOperation();
             return;
         }
         fileList=encipherList;
@@ -289,9 +291,11 @@ void MainWindow::startOperation() {
     if(currentOperation.contains("encipherOnly")) {
         dialog->showCurrentProgression(true);
         if (!fileList.isEmpty()) {
-            cipher->startOperation("encipher", fileList.first(), fileList.first()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7"), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
+            bool result = cipher->startOperation("encipher", fileList.first(), fileList.first()+"."+ui->comboBoxCipherToEncipher->currentText().toAscii()+(ui->expert_comboBoxPadding->currentText()=="" ? "" : ".p7"), ui->comboBoxCipherToEncipher->currentText(), ui->passwordToEncipherWith->text(), "", ui->expert_comboBoxPadding->currentText(), ui->expert_comboBoxCipherMode->currentText());
             fileList.pop_front();
             timer->start();
+            if(!result)
+                this->startOperation();
             return;
         }
         timer->stop();
@@ -328,9 +332,12 @@ void MainWindow::startOperation() {
     if(currentOperation.contains("checkChecksumOnly")) {
         dialog->showCurrentProgression(false);
         if(!fileList.isEmpty()) {
-            cipher->startOperation("checkChecksum", fileList.at(fileList.size()/2).split("."+ui->comboBoxCipherToDecipher->currentText()+(ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7")).first(), "", ui->expert_comboBoxHashAlgorithm->currentText(), "", fileList.first());
+            bool result = cipher->startOperation("checkChecksum", fileList.at(fileList.size()/2).split("."+ui->comboBoxCipherToDecipher->currentText()+(ui->expert_comboBoxPadding->currentText().isEmpty() ? "" : ".p7")).first(), "", ui->expert_comboBoxHashAlgorithm->currentText(), "", fileList.first());
             fileList.removeAt(fileList.size()/2);
             fileList.pop_front();
+
+            if(!result)
+                this->startOperation();
             return;
         }
     }
