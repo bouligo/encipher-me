@@ -1,9 +1,9 @@
 /**
- * TODO NEXT : write IV & key length
  *
  * /**
  *  TODO:
  * add "yes to all" for overwrite
+ * move the md5 name check to mainwindow
  *  Change icon
  * cipher.startOperation : QStringList ?
  *  secured deletion /w abstract inherited class (QString binary = QString::number(QString("0x0").toLongLong(0, 16), 2);)

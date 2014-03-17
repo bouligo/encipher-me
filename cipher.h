@@ -59,6 +59,7 @@ protected:
     QCA::Cipher::Mode cipherMode;
     QFile *in, *out, *checksum;
     bool success,canceled,isWorking;
+    int keySize;
 
 signals:
     void stepChanged(QString text);

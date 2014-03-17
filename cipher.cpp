@@ -33,8 +33,8 @@ void Cipher::emitProgression() {
     if(this->operation.contains("cipher") && this->isWorking)
         // Safety reasons : if we're doin checksums or if no encipherment operation is proceeded, can't say progression.
         emit progressionChanged((int)((out->size()*100)/in->size()));
-//    else
-//        emit progressionChanged(0);
+    //    else
+    //        emit progressionChanged(0);
 }
 
 void Cipher::initState() {
@@ -142,6 +142,19 @@ bool Cipher::startOperation(QString newOperation, QString inputFile, QString out
     else
         this->cipherMode = QCA::Cipher::CBC;
 
+    if(currentCipher.contains("aes128"))
+        this->keySize=128/8;
+    else if(currentCipher.contains("aes192"))
+        this->keySize=192/8;
+    else if(currentCipher.contains("aes256"))
+        this->keySize=256/8;
+    else if(currentCipher.contains("blowfish"))
+        this->keySize=448/8;
+    else if(currentCipher.contains("des"))
+        this->keySize=56/8;
+    else if(currentCipher.contains("cast5"))
+        this->keySize=128/8;
+
     this->start();
 
     return true;
@@ -165,12 +178,7 @@ int Cipher::encipher(QString currentCipher, QString password) {
     QCA::InitializationVector iv = QCA::Random::randomArray(16);
 
     QCA::PBKDF2 pbkdf2;
-    QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 250000); //100K or more
-
-//    QCA::Hash hash("md5");
-//    hash.update(key.toByteArray());
-//    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
-
+    QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, this->keySize, 250000); //100K or more
 
     /*
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
@@ -313,11 +321,8 @@ int Cipher::decipher(QString currentCipher, QString password) {
 
 
     QCA::PBKDF2 pbkdf2;
-    QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, 256, 250000); //100K or more
+    QCA::SymmetricKey key = pbkdf2.makeKey(password.toAscii(), salt, this->keySize, 250000); //100K or more
 
-//    QCA::Hash hash("md5");
-//    hash.update(key.toByteArray());
-//    QCA::InitializationVector iv = QCA::SecureArray(hash.final());
 
     /*
      * Setup the cipher, with algorythm, method, padding, direction, key and init. vector
