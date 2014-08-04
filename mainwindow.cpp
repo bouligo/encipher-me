@@ -23,8 +23,8 @@ void MainWindow::on_actionNouveau_triggered()
     this->encipherList.empty();
     this->decipherList.empty();
 
-    ui->comboBoxCipherToDecipher->setCurrentIndex(0);
-    ui->comboBoxCipherToEncipher->setCurrentIndex(0);
+    ui->comboBoxCipherToDecipher->setCurrentIndex(2); // Sets to AES256
+    ui->comboBoxCipherToEncipher->setCurrentIndex(2); // Sets to AES256
 
     ui->passwordToDecipherWith->setText("");
     ui->passwordToEncipherWith->setText("");

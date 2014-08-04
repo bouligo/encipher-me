@@ -10,7 +10,6 @@
  *  tooltips à faire // needed for release
  *  Code factorisation (return code for cipher)
  *  Make a difference for release/debug (#define, #ifdef)
- *  logfile (x.img enciphered with aes256-cbc at ...
  *
  *  -cli alternative
  */
